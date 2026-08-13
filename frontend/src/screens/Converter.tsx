@@ -3,8 +3,26 @@ import React from "react";
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
+import { formatResult } from "@/lib/format";
 
-const CATEGORIES = [
+type Unit = {
+  key: string;
+  sym: string;
+  name: string;
+  /** Factor to the category base unit. Absent for temperature, which is affine. */
+  f?: number;
+};
+
+type Category = {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+  temp?: boolean;
+  units: Unit[];
+};
+
+const CATEGORIES: Category[] = [
   {
     id: 'length',
     label: 'Length',
@@ -127,45 +145,30 @@ const KEYS = ['7', '8', '9', 'back', '4', '5', '6', 'clear', '1', '2', '3', 'sig
 
 const NUM_RE = /^-?(\d+(\.\d*)?|\.\d+)$/;
 
-function toCelsius(v, key) {
+function toCelsius(v: number, key: string): number {
   if (key === 'c') return v;
   if (key === 'f') return (v - 32) * 5 / 9;
   return v - 273.15;
 }
 
-function fromCelsius(v, key) {
+function fromCelsius(v: number, key: string): number {
   if (key === 'c') return v;
   if (key === 'f') return v * 9 / 5 + 32;
   return v + 273.15;
 }
 
-function convert(value, cat, fromKey, toKey) {
+function convert(value: number, cat: Category, fromKey: string, toKey: string): number {
   if (cat.temp) return fromCelsius(toCelsius(value, fromKey), toKey);
   const a = cat.units.find(function (u) { return u.key === fromKey; });
   const b = cat.units.find(function (u) { return u.key === toKey; });
-  if (!a || !b) return NaN;
+  if (!a || !b || typeof a.f !== 'number' || typeof b.f !== 'number') return NaN;
   return (value * a.f) / b.f;
-}
-
-function formatResult(n) {
-  if (typeof n !== 'number' || !isFinite(n)) return '';
-  if (n === 0) return '0';
-  const abs = Math.abs(n);
-  if (abs >= 1e9 || abs < 1e-6) {
-    let s = n.toExponential(5);
-    s = s.replace(/\.?0+e/, 'e');
-    return s;
-  }
-  let s = n.toPrecision(6);
-  if (s.indexOf('e') !== -1) return s;
-  if (s.indexOf('.') !== -1) s = s.replace(/0+$/, '').replace(/\.$/, '');
-  return s;
 }
 
 export default function Screen() {
   const [catId, setCatId] = React.useState('length');
   const [raw, setRaw] = React.useState('');
-  const cat = CATEGORIES.find(function (c) { return c.id === catId; });
+  const cat = CATEGORIES.find(function (c) { return c.id === catId; }) || CATEGORIES[0];
   const [fromKey, setFromKey] = React.useState(cat.from);
   const [toKey, setToKey] = React.useState(cat.to);
 
@@ -178,14 +181,14 @@ export default function Screen() {
   const result = valid ? formatResult(convert(value, cat, fromUnit.key, toUnit.key)) : '';
   const unitRate = formatResult(convert(1, cat, fromUnit.key, toUnit.key));
 
-  function pickCategory(id) {
-    const next = CATEGORIES.find(function (c) { return c.id === id; });
-    setCatId(id);
+  function pickCategory(id: string) {
+    const next = CATEGORIES.find(function (c) { return c.id === id; }) || CATEGORIES[0];
+    setCatId(next.id);
     setFromKey(next.from);
     setToKey(next.to);
   }
 
-  function press(k) {
+  function press(k: string) {
     if (k === 'clear') { setRaw(''); return; }
     if (k === 'back') { setRaw(function (r) { return r.slice(0, -1); }); return; }
     if (k === 'sign') {
@@ -204,7 +207,12 @@ export default function Screen() {
   const panel = '#11181D';
   const line = '#1E272D';
 
-  function unitRow(label, selected, onPick, describedBy) {
+  function unitRow(
+    label: string,
+    selected: Unit,
+    onPick: (key: string) => void,
+    describedBy: string
+  ) {
     return (
       <div>
         <div className="flex items-baseline justify-between mb-2">
