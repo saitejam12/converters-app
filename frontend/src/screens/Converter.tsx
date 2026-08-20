@@ -3,7 +3,7 @@ import React from "react";
 import * as UI from "@/lib/ui";
 import { Icons } from "@/lib/icons";
 import { brand } from "@/lib/brand";
-import { formatResult } from "@/lib/result_formatter";
+import { formatResult } from "@/lib/resultFormatter";
 
 const CATEGORIES = [
   {
@@ -126,6 +126,8 @@ const CATEGORIES = [
 
 const KEYS = ['7', '8', '9', 'back', '4', '5', '6', 'clear', '1', '2', '3', 'sign', '0', '.'];
 
+// Single number format: only a dot is accepted as the decimal separator, in
+// every browser locale. There is no locale-dependent parsing.
 const NUM_RE = /^-?(\d+(\.\d*)?|\.\d+)$/;
 
 function toCelsius(v, key) {
